@@ -34,17 +34,14 @@ class Sequence:
         self.index += 1
         return char
 
-    def sequence(self) -> str:
-        return self.sequence
-
-    def header(self) -> str:
-        return self.header
-
 class Fasta:
     sequences: List[Sequence]
 
-    def __init__(self, sequences: List[Sequence]):
-        self.sequences = sequences
+    def __init__(self, sequences: List[Sequence] = None):
+        if sequences is None:
+            self.sequences = []
+        else:
+            self.sequences = sequences
         self.index = 0
 
     def __str__(self):
@@ -60,6 +57,9 @@ class Fasta:
         self.index += 1
         return sequence
 
+    def __len__(self):
+        return len(self.sequences)
+
     def add(self, sequence: Sequence) -> None:
         self.sequences.append(sequence)
 
@@ -71,12 +71,34 @@ class Fasta:
 
     def write(self, filename: str, line_length=0) -> None:
         write_string = ""
-        for sequence in self.sequences:
-            header = sequence.header
-            sequence_string = sequence.sequence
+        for seq in self.sequences:
+            header = seq.header
+            sequence_string = seq.sequence
             if line_length > 0:
-                split_sequence = "\n".join(sequence[i:i + line_length] for i in range(0, len(sequence_string), line_length))
+                split_sequence_lines = []
+                for i in range(0, len(sequence_string), line_length):
+                    chunk = sequence_string[i:i + line_length]
+                    split_sequence_lines.append(chunk)
+                split_sequence = "\n".join(split_sequence_lines)
             else:
                 split_sequence = sequence_string
             write_string += f"{header}\n{split_sequence}\n"
         io_helpers.write_file(f"{filename}.fasta", write_string)
+
+
+    def read(self, filename: str) -> None:
+        file = io_helpers.read_lines(filename)
+        current_header = None
+        current_sequence = ""
+        for line in file:
+            if line.startswith(">"):
+                if current_header is not None:
+                    sequence = Sequence(header=current_header, sequence=current_sequence)
+                    self.sequences.append(sequence)
+                current_header = line.strip()
+                current_sequence = ""
+            else:
+                current_sequence += line.strip()
+        if current_header is not None:
+            sequence = Sequence(header=current_header, sequence=current_sequence)
+            self.sequences.append(sequence)
