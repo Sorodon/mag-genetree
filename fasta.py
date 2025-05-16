@@ -83,11 +83,11 @@ class Fasta:
             else:
                 split_sequence = sequence_string
             write_string += f"{header}\n{split_sequence}\n"
-        io_helpers.write_file(f"{filename}.fasta", write_string)
+        io_helpers.write_file(f"{filename}.fasta", content=write_string)
 
 
     def read(self, filename: str) -> None:
-        file = io_helpers.read_lines(filename)
+        file = io_helpers.read_file(filename, lines=True)
         current_header = None
         current_sequence = ""
         for line in file:
