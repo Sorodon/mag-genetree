@@ -1,4 +1,7 @@
-# vim: set foldmethod=marker :
+# vim: set foldmethod=marker:
+# vim: set foldclose=all foldlevel=0:
+# vim: set foldenable: 
+
 # TODO: add docstrings
 
 from typing import List, Set, Optional
@@ -10,12 +13,15 @@ import os
 import fasta as fs
 import io_helpers as io
 
-def merge_fastas( # {{{
+def flatten_fastas( # {{{
         fastas: List[fs.Fasta],
         names: List[str] = [],
         sep: str = "_",
         names_sep: str = "-"
 ) -> str:
+    """
+    Creates a single string of a list of fastas with optional identifiers
+    """
     if len(names) != 0 and len(fastas) != len(names):
         raise ValueError("names and fastas do not match in length!")
     strings = []
@@ -33,6 +39,9 @@ def concat_fastas( # {{{
         names: List[str] = [], 
         names_sep: str = "-"
 ) -> fs.Fasta :
+    """
+    Turns a list of fastas into a single fasta
+    """
     if len(names) != 0 and len(fastas) != len(names):
         raise ValueError("names and fastas do not match in length!")
     result = fs.Fasta()
@@ -67,6 +76,42 @@ def build_clusters( # {{{
     return result
 # }}}
 
+def read_clusters( # {{{
+    filepath: str,
+) -> List[Set[str]]:
+    file_content = io.read_file(filepath, lines=True)
+    clusters = []
+    for line in file_content:
+        cluster = line.strip()[1:-1]
+        proteins = [protein[1:-1] for protein in cluster.split(", ")]
+        clusters.append(set(proteins))
+    return clusters
+# }}}
+
+def write_clusters( # {{{
+    filepath: str,
+    clusters: List[Set[str]]
+) -> None:
+    file_string = "\n".join([str(cluster) for cluster in clusters])
+    io.write_file(filepath, file_string)
+# }}}
+
+def translate_proteins( # {{{
+    clusters: List[Set[str]],
+    database: fs.Fasta,
+    sep: str = "-"
+) -> List[Set[str]]:
+    clusters_new = []
+    for cluster in clusters:
+        cluster_new = set()
+        for protein in cluster:
+            bin, _, id = protein.partition(sep)
+            for sequence in database.search(id):
+                cluster_new.add(f"{bin}-{sequence.header}")
+        clusters_new.append(cluster_new)
+    return clusters_new
+# }}}
+
 def main( # {{{
         data_file: str,
         diamond: str,
@@ -74,12 +119,15 @@ def main( # {{{
         output: Optional[str] = None,
         verbose: bool = False
 ):
+    # Get data paths and identifiers from csv file
     data = io.parse_csv(
         data_file,
         columns = 2,
         sep = ",",
         pattern = r"([a-zA-Z0-9/_\.]*)"
     )
+
+    # Create big List of fasta including bin names
     fastas, names = [], []
     for file, identifier in data:
         fasta = fs.Fasta()
@@ -87,12 +135,14 @@ def main( # {{{
         fastas.append(fasta)
         names.append(identifier)
     fasta = concat_fastas(fastas, names=names)
-    fasta.write("concat")
+    
+    # save to temporary file and run diamond on it
+    fasta.write("diamond_in")
     command = [
         diamond,
         "cluster",
         "-d",
-        "concat.fasta",
+        "diamond_in.fasta",
         "-o",
         "diamond_out.tsv",
         "--approx-id",
@@ -106,23 +156,27 @@ def main( # {{{
         stderr=None if verbose else subprocess.DEVNULL
     )
 
+    # read diamond output and build cluster list from it
     connections = io.read_file("diamond_out.tsv", lines=True)
     clusters = build_clusters(connections)
+    clusters = translate_proteins(clusters, fasta)
 
+    # clean temporary files
     try:
         os.remove("diamond_out.tsv")
-        os.remove("concat.fasta")
+        os.remove("diamond_in.fasta")
     except Exception as e:
         print(f"There was an error removing temporary files: {e}")
-    file_string = "\n".join([str(cluster) for cluster in clusters])
+
+    # write to file or return
     if output:
-        io.write_file(output, file_string)
+        write_clusters(output, clusters)
     else:
         return clusters
 # }}}
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(prog="clustering.py")
+if __name__ == "__main__": # {{{
+    parser = argparse.ArgumentParser(prog="clustering.py") # {{{
 
     parser.add_argument(
         "DATA",
@@ -158,6 +212,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    # }}}
 
     # Defaults
     THRESHOLD = 30 if not args.threshold else args.threshold
@@ -173,3 +228,4 @@ if __name__ == "__main__":
     if output:
         for cluster in output:
             print(cluster)
+# }}}

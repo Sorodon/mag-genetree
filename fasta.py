@@ -1,7 +1,9 @@
 # TODO: add pydoc string
+from typing import List, Tuple, Union
+import re
 
 import io_helpers
-from typing import List
+
 
 class Sequence:
     header: str
@@ -34,6 +36,12 @@ class Sequence:
         self.index += 1
         return char
 
+    def redit(self, edit: Tuple[str, str], field: str = "header"):
+        if field == "header":
+            self.header = re.sub(edit[0], edit[1], self.header)
+        elif field == "sequence":
+            self.sequence = re.sub(edit[0], edit[1], self.sequence)
+
 class Fasta:
     sequences: List[Sequence]
 
@@ -60,14 +68,36 @@ class Fasta:
     def __len__(self):
         return len(self.sequences)
 
-    def add(self, sequence: Sequence) -> None:
-        self.sequences.append(sequence)
+    def add(self, new: Union['Sequence', 'Fasta', List['Sequence']]) -> None:
+        if isinstance(new, Sequence):
+            self.sequences.append(new)
+        elif isinstance(new, list):
+            for sequence in new:
+                self.add(sequence)
+        elif isinstance(new, Fasta):
+            self.add(new.sequences)
+
 
     def delete(self, index: int) -> None:
         del self.sequences[index]
 
     def get(self, index:int) -> Sequence:
         return self.sequences[index]
+
+    def search(self, search:str, in_seq:bool=False, regex:bool=False) -> List[Sequence]:
+        result = []
+        for sequence in self.sequences:
+            if not regex:
+                if (search in sequence.sequence if in_seq else search in sequence.header):
+                    result.append(sequence)
+            else:
+                if re.search(search, sequence.sequence if in_seq else sequence.header):
+                    result.append(sequence)
+        return result
+
+    def redit(self, edit: Tuple[str, str], field: str = "header"):
+        for sequence in self.sequences:
+            sequence.redit(edit=edit, field=field)
 
     def write(self, filename: str, line_length=0) -> None:
         write_string = ""
