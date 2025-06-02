@@ -1,7 +1,11 @@
+# vim: set foldmethod=marker:
+# vim: set foldclose=all foldlevel=0:
+# vim: set foldenable: 
+
 from typing import List, Tuple, Optional, Union
 import re
 
-def read_file(
+def read_file( #{{{
     filepath: str,
     lines: bool = False
 ) -> Optional[Union[str, List[str]]]:
@@ -28,8 +32,9 @@ def read_file(
         print("An I/O error occured.")
     except Exception as e:
         print(f"An unspecified error has occured while opening the file at {filepath}: \n {e}")
+#}}}
 
-def write_file(
+def write_file( #{{{
     filepath: str,
     content: Union[str, List[str]]
 ) -> None:
@@ -54,8 +59,9 @@ def write_file(
         print("An I/O error occured.")
     except Exception as e:
         print(f"An unspecified error has occured while opening the file at {filepath}: \n {e}")
+#}}}
 
-def parse_csv(
+def parse_csv( #{{{
         filepath: str,
         columns: int,
         sep: str = ",",
@@ -81,6 +87,7 @@ def parse_csv(
         if match_obj:
             result.append(tuple(match_obj.group(i) for i in range(1,columns+1)))
     return result
+#}}}
 
 if __name__ == "__main__":
     None
