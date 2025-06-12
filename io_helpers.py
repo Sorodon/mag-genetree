@@ -22,9 +22,9 @@ def read_file( #{{{
     try:
         with open(filepath, 'r') as file:
             if lines:
-                content = file.readlines()
+                content = [line.strip() for line in file.readlines()]
             else:
-                content = file.read()
+                content = file.read().strip()
             return content
     except PermissionError:
         print(f"You do not have permission to write the file at {filepath}.")
@@ -84,21 +84,22 @@ def parse_csv( #{{{
     result = []
     for line in contents:
         columns = []
-        sep_in_line = False
         while sep in line:
-            sep_in_line = True
             column, _, line = line.partition(sep)
             columns.append(column)
-        if sep_in_line: columns.append(column)
+        columns.append(line)
         result.append(columns)
     if header_row:
-        dicts,header = [], []
-        while header == []:
-            header = result.pop(0)
+        dicts = []
+        header = result.pop(0)
+        print(header)
         for line in result:
             resulting_dict = {}
             for index, field in enumerate(header):
-                resulting_dict[field] = line[index]
+                try:
+                    resulting_dict[field] = line[index]
+                except IndexError:
+                    None
             dicts.append(resulting_dict)
         return dicts
     return result
