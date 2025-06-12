@@ -122,9 +122,7 @@ def main( # {{{
     # Get data paths and identifiers from csv file
     data = io.parse_csv(
         data_file,
-        columns = 2,
         sep = ",",
-        pattern = r"([a-zA-Z0-9/_\.]*)"
     )
 
     # Create big List of fasta including bin names

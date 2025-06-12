@@ -124,4 +124,6 @@ if __name__ == "__main__":
     print("\n")
     print(bakta_table.find("UniRef:UniRef50_UPI00260CD7CB"))
     print(bakta_table.find("UniRef:UniRef50_UPI00260CD7CB", key=["DbXrefs"]))
+    print(bakta_table.find("UniRef:UniRef50_UPI00260CD7CB", key=["Strand"]))
+    print(bakta_table.find("UniRef:UniRef50_UPI00260CD7CB", key=["DbXrefs", "Strand"]))
     print(bakta_table.find("UniRef:UniRef50_UPI00260CD7CB", "DbXrefs"))
