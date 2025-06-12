@@ -77,6 +77,29 @@ class Bakta_table: #{{{
         )
         self.table = self.table + file
     #}}}
+
+    def find( #{{{
+        self,
+        value: str,
+        key: str = None
+    ) -> List[dict]:
+        if key is None:
+            return [entry for entry in self.table if any(value in v for v in entry.values())]
+        elif isinstance(key, list):
+            result = []
+            for entry in self.table:
+                for keyx, valuex in entry.items():
+                    if value in valuex and keyx in key:
+                        result.append(entry)
+            return result
+        else:
+            result = []
+            for entry in self.table:
+                for keyx, valuex in entry.items():
+                    if value in valuex and keyx in key:
+                        result.append(entry)
+            return result
+    #}}}
 #}}}
 
 if __name__ == "__main__":
@@ -94,7 +117,11 @@ if __name__ == "__main__":
     }
     bakta_table = Bakta_table()
 
-    bakta_table.read("../data/bin.1/bin.1.tsv", skip=4)
+    bakta_table.read("../data/bin.1/bin.1.tsv", skip=5)
     [print(bakta_table[i]) for i in range(0,20)]
     print(len(bakta_table))
-    print(bakta_table["Locus Tag", "GJAOMA_00160"])
+    print(bakta_table["DbXrefs", "SO:0001217, UniRef:UniRef50_UPI00260DA7F0"])
+    print("\n")
+    print(bakta_table.find("UniRef:UniRef50_UPI00260CD7CB"))
+    print(bakta_table.find("UniRef:UniRef50_UPI00260CD7CB", key=["DbXrefs"]))
+    print(bakta_table.find("UniRef:UniRef50_UPI00260CD7CB", "DbXrefs"))
