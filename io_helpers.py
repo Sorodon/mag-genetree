@@ -63,31 +63,52 @@ def write_file( #{{{
 
 def parse_csv( #{{{
         filepath: str,
-        columns: int,
         sep: str = ",",
-        pattern = r"([a-zA-z0-9_]*)"
-) -> List[Tuple[str, ...]]:
+        header_row: bool = False,
+        skip: int = 0
+) -> List[List[str]]:
     """
-    Parse a csv (or similar file) and return a list of tuples (containing columns)
+    Parse a csv (or similar file) and return a list of lists (containing columns)
 
     Args:
         filepath (str): The path to the csv file
-        columns (str): The number of columns to expect
-        sep (str, optional): The separator for columns (defaults to ',')
-        pattern (str, optional): The pattern matching single fields. Should contain one capture group. Defaults to r'([a-zA-z0-9_])'
+        sep (str, optional): The separator for columns. (defaults to ',')
+        header_row (bool): If True, will output a list of dictionaries with named column fields using the first row as names. (defaults to False)
+        skip (int): Skips the specified amount of rows from the top of the file. (defaults to 0)
 
     Returns:
-        List[Tuple[str, ...]]: A list of tuples, one tuple per line with as many strings as defined in columns. Lines not matching the pattern get ignored.
+        List[List[str, ...]]: A list of lists, one list per line with as many strings as defined in columns.
     """
     contents = read_file(filepath=filepath, lines=True)
-    full_pattern = f"^{sep.join([pattern for _ in range(columns)])}$"
+    contents = contents[skip:]
     result = []
     for line in contents:
-        match_obj = re.fullmatch(full_pattern, line.strip())
-        if match_obj:
-            result.append(tuple(match_obj.group(i) for i in range(1,columns+1)))
+        columns = []
+        sep_in_line = False
+        while sep in line:
+            sep_in_line = True
+            column, _, line = line.partition(sep)
+            columns.append(column)
+        if sep_in_line: columns.append(column)
+        result.append(columns)
+    if header_row:
+        dicts,header = [], []
+        while header == []:
+            header = result.pop(0)
+        for line in result:
+            resulting_dict = {}
+            for index, field in enumerate(header):
+                resulting_dict[field] = line[index]
+            dicts.append(resulting_dict)
+        return dicts
     return result
 #}}}
 
 if __name__ == "__main__":
-    None
+    file = parse_csv(
+        "../data/bin.2/bin.2.tsv",
+        sep = "\t",
+        skip = 5,
+        header_row = True
+    )
+    [print(line) for line in file]
