@@ -5,6 +5,7 @@
 # TODO: add docstrings
 
 from typing import List, Set, Optional, Union
+import re
 
 import fasta as fs
 import io_helpers as io
@@ -102,6 +103,19 @@ class Bakta_table: #{{{
     #}}}
 #}}}
 
+def get_uniprot( #{{{
+        annotation: dict,
+        field: str = "DbXrefs",
+        level: int = 100
+) -> str:
+    None
+    pattern = rf"UniRef:UniRef{level}_([a-zA-Z0-9]+)"
+    if annotation.get(field) is not None:
+        match = re.search(pattern, annotation.get(field))
+        if match:
+            return match.group(1)
+#}}}
+
 if __name__ == "__main__":
     bakta = {
         "sequence_id": "sequence_id",
@@ -117,13 +131,12 @@ if __name__ == "__main__":
     }
     bakta_table = Bakta_table()
 
-    bakta_table.read("../data/bin.1/bin.1.tsv", skip=5)
+    bakta_table.read("../data/bin.2/bin.2.tsv", skip=5)
     [print(bakta_table[i]) for i in range(0,20)]
     print(len(bakta_table))
     print(bakta_table["DbXrefs", "SO:0001217, UniRef:UniRef50_UPI00260DA7F0"])
     print("\n")
-    print(bakta_table.find("UniRef:UniRef50_UPI00260CD7CB"))
-    print(bakta_table.find("UniRef:UniRef50_UPI00260CD7CB", key=["DbXrefs"]))
-    print(bakta_table.find("UniRef:UniRef50_UPI00260CD7CB", key=["Strand"]))
-    print(bakta_table.find("UniRef:UniRef50_UPI00260CD7CB", key=["DbXrefs", "Strand"]))
-    print(bakta_table.find("UniRef:UniRef50_UPI00260CD7CB", "DbXrefs"))
+    annotation = bakta_table.find("OJFFMF_00010", "Locus Tag")[0]
+    print(annotation)
+    match = get_uniprot(annotation, level=50)
+    print(match)
