@@ -92,7 +92,6 @@ def parse_csv( #{{{
     if header_row:
         dicts = []
         header = result.pop(0)
-        print(header)
         for line in result:
             resulting_dict = {}
             for index, field in enumerate(header):
