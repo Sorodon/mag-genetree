@@ -6,10 +6,9 @@
 from typing import List, Tuple, Union
 import re
 
-import io_helpers
+import io_helpers as io
 
-
-class Sequence:
+class Sequence: #{{{
     header: str
     sequence: str
 
@@ -45,8 +44,9 @@ class Sequence:
             self.header = re.sub(edit[0], edit[1], self.header)
         elif field == "sequence":
             self.sequence = re.sub(edit[0], edit[1], self.sequence)
+#}}}
 
-class Fasta:
+class Fasta: #{{{
     sequences: List[Sequence]
 
     def __init__(self, sequences: List[Sequence] = None):
@@ -117,12 +117,12 @@ class Fasta:
             else:
                 split_sequence = sequence_string
             write_string += f"{header}\n{split_sequence}\n"
-        io_helpers.write_file(f"{filename}.fasta", content=write_string)
+        io.write_file(f"{filename}.fasta", content=write_string)
 
 
     def read(self, input_file: str, identifier:str = "", from_file:bool = True) -> None:
         if from_file:
-            file = io_helpers.read_file(input_file, lines=True)
+            file = io.read_file(input_file, lines=True)
         else:
             file = [line.strip() for line in input_file.splitlines()]
         current_header = None
@@ -141,3 +141,4 @@ class Fasta:
             current_header = f">{identifier}{current_header[1:]}"
             sequence = Sequence(header=current_header, sequence=current_sequence)
             self.sequences.append(sequence)
+#}}}
