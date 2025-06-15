@@ -1,3 +1,7 @@
+# vim: set foldmethod=marker:
+# vim: set foldclose=all foldlevel=0:
+# vim: set foldenable: 
+
 # TODO: add pydoc string
 from typing import List, Tuple, Union
 import re
@@ -116,13 +120,17 @@ class Fasta:
         io_helpers.write_file(f"{filename}.fasta", content=write_string)
 
 
-    def read(self, filename: str) -> None:
-        file = io_helpers.read_file(filename, lines=True)
+    def read(self, input_file: str, identifier:str = "", from_file:bool = True) -> None:
+        if from_file:
+            file = io_helpers.read_file(input_file, lines=True)
+        else:
+            file = [line.strip() for line in input_file.splitlines()]
         current_header = None
         current_sequence = ""
         for line in file:
             if line.startswith(">"):
                 if current_header is not None:
+                    current_header = f">{identifier}{current_header[1:]}"
                     sequence = Sequence(header=current_header, sequence=current_sequence)
                     self.sequences.append(sequence)
                 current_header = line.strip()
@@ -130,5 +138,6 @@ class Fasta:
             else:
                 current_sequence += line.strip()
         if current_header is not None:
+            current_header = f">{identifier}{current_header[1:]}"
             sequence = Sequence(header=current_header, sequence=current_sequence)
             self.sequences.append(sequence)
