@@ -9,6 +9,7 @@ import subprocess
 import re
 import argparse
 import os
+import time
 
 import fasta as fs
 import io_helpers as io
@@ -45,12 +46,10 @@ def concat_fastas( # {{{
     if len(names) != 0 and len(fastas) != len(names):
         raise ValueError("names and fastas do not match in length!")
     result = fs.Fasta()
-    for index, fasta in enumerate(fastas):
-        for seq in fasta:
-            if len(names) != 0:
-                new_header = f">{names[index]}{names_sep}{seq.header[1:]}"
-                new_Sequence = fs.Sequence(header=new_header, sequence=seq.sequence)
-            result.add(new_Sequence)
+    if names != []:
+        for index, fasta in enumerate(fastas):
+            fasta.redit(edit=(r"^>(.+)$", rf">{names[index]}{names_sep}\1"))
+    [result.add(fasta) for fasta in fastas]
     return result
 # }}}
 
@@ -96,48 +95,98 @@ def write_clusters( # {{{
     io.write_file(filepath, file_string)
 # }}}
 
-def translate_proteins( # {{{
-    clusters: List[Set[str]],
-    database: fs.Fasta,
-    sep: str = "-"
-) -> List[Set[str]]:
-    clusters_new = []
-    for cluster in clusters:
-        cluster_new = set()
-        for protein in cluster:
-            bin, _, id = protein.partition(sep)
-            for sequence in database.search(id):
-                cluster_new.add(f"{bin}-{sequence.header}")
-        clusters_new.append(cluster_new)
-    return clusters_new
-# }}}
-
 def main( # {{{
         data_file: str,
-        diamond: str,
+        diamond_path: str,
         threshold: int,
-        output: Optional[str] = None,
         verbose: bool = False
 ):
-    # Get data paths and identifiers from csv file
     data = io.parse_csv(
         data_file,
         sep = ",",
     )
-
     # Create big List of fasta including bin names
-    fastas, names = [], []
-    for file, identifier in data:
-        fasta = fs.Fasta()
-        fasta.read(file)
-        fastas.append(fasta)
-        names.append(identifier)
+    fastas = [(fasta := fs.Fasta()).read(file) or fasta for file, _ in data]
+    names = [name for _, name in data]
     fasta = concat_fastas(fastas, names=names)
-    
-    # save to temporary file and run diamond on it
+
+    start_time = time.time()
+    clusters = diamond(fasta, threshold, verbose=verbose, executable=diamond_path)
+    end_time = time.time()
+    if verbose: print(f"Diamond took: {(end_time-start_time):.4f}s")
+
+    start_time = time.time()
+    clusters = grow_clusters(clusters)
+    end_time = time.time()
+    if verbose: print(f"Growing took: {(end_time-start_time):.4f}s")
+
+    start_time = time.time()
+    clusters = purge_clusters(clusters)
+    end_time = time.time()
+    # [print(cluster) for cluster in clusters]
+    if verbose: print(f"Purging took: {(end_time-start_time):.4f}s")
+
+    start_time = time.time()
+    clusters = parse_clusters(clusters, fasta)
+    end_time = time.time()
+    if verbose: print(f"Parsing took: {(end_time-start_time):.4f}s")
+
+    return clusters
+# }}}
+
+def grow_clusters( #{{{
+    clusters: List[Set[str]]
+) -> List[Set[str]]:
+    """
+    Merges all clusters with overlapping elements until only disjoint Sets (Clusters) are left
+    """
+    while True:
+        new_clusters = []
+        merged = False
+        while clusters:
+            seed = clusters.pop(0)
+            for cluster in clusters:
+                if not seed.isdisjoint(cluster):
+                    seed = seed.union(cluster)
+                    clusters.remove(cluster)
+                    merged = True
+            new_clusters.append(seed)
+        clusters = new_clusters
+        if not merged:
+            break
+    return clusters
+#}}}
+
+def parse_clusters( #{{{
+    clusters: List[Set[str]],
+    reference: fs.Fasta
+) -> List[fs.Fasta]:
+    """
+    Turn a list of clusters into a list of their respective fasta objects.
+    Raises a ValueError if an object is ambiguous
+    """
+    result = []
+    for cluster in clusters:
+        new_cluster = fs.Fasta()
+        for sequence in cluster:
+            search_result = reference.search(sequence)
+            if len(search_result) != 1:
+                raise ValueError(f"The search in the reference Fasta was faulty (found: {len(search_result)})")
+            else:
+                new_cluster.add(search_result[0])
+        result.append(new_cluster)
+    return result
+#}}}
+
+def diamond( #{{{
+    fasta: fs.Fasta,
+    threshold: int,
+    executable: str = "./diamond/diamond",
+    verbose:bool = False
+) -> List[fs.Fasta]:
     fasta.write("diamond_in")
     command = [
-        diamond,
+        executable,
         "cluster",
         "-d",
         "diamond_in.fasta",
@@ -153,11 +202,15 @@ def main( # {{{
         stdout=None if verbose else subprocess.DEVNULL,
         stderr=None if verbose else subprocess.DEVNULL
     )
+    
+    diamond_out = io.read_file("diamond_out.tsv", lines=True)
 
-    # read diamond output and build cluster list from it
-    connections = io.read_file("diamond_out.tsv", lines=True)
-    clusters = build_clusters(connections)
-    clusters = translate_proteins(clusters, fasta)
+    # build the clusters
+    clusters = []
+    for line in diamond_out:
+        protein1, _, protein2 = line.partition("\t")
+        clusters.append(set([protein1, protein2]))
+    # clusters = grow_clusters(clusters)
 
     # clean temporary files
     try:
@@ -166,12 +219,18 @@ def main( # {{{
     except Exception as e:
         print(f"There was an error removing temporary files: {e}")
 
-    # write to file or return
-    if output:
-        write_clusters(output, clusters)
-    else:
-        return clusters
-# }}}
+    return clusters
+#}}}
+
+def purge_clusters( #{{{
+    clusters:List[Set[str]],
+    min:int = 2
+) -> List[Set[str]]: 
+    """
+    Remove all clusters with less than a specified amount of sequences
+    """
+    return [cluster for cluster in clusters if len(cluster) >= min]
+#}}}
 
 if __name__ == "__main__": # {{{
     parser = argparse.ArgumentParser(prog="clustering.py") # {{{
@@ -206,7 +265,7 @@ if __name__ == "__main__": # {{{
         "-v",
         "--verbose",
         action = "store_true",
-        help = "Set to show the output of diamond."
+        help = "Set to show the output of diamond and additional timing information."
     )
 
     args = parser.parse_args()
@@ -216,14 +275,11 @@ if __name__ == "__main__": # {{{
     THRESHOLD = 30 if not args.threshold else args.threshold
     DIAMOND = "./diamond/diamond" if not args.diamond else args.diamond-executable
 
-    output = main(
+    clusters = main(
         data_file = args.DATA,
-        diamond = DIAMOND,
+        diamond_path = DIAMOND,
         threshold = THRESHOLD,
-        output = args.output,
         verbose = args.verbose
     )
-    if output:
-        for cluster in output:
-            print(cluster)
+    [print(cluster) for cluster in clusters]
 # }}}
