@@ -3,8 +3,11 @@
 # vim: set foldenable: 
 
 # TODO: add pydoc string
+from __future__ import annotations
 from typing import List, Tuple, Union
 import re
+import subprocess
+import os
 
 import io_helpers as io
 
@@ -44,22 +47,37 @@ class Sequence: #{{{
             self.header = re.sub(edit[0], edit[1], self.header)
         elif field == "sequence":
             self.sequence = re.sub(edit[0], edit[1], self.sequence)
+        else:
+            raise ValueError(f"Valid fields: header, sequence (provided: {field})")
 #}}}
 
 class Fasta: #{{{
     sequences: List[Sequence]
+    distmat: Distmat
 
     def __init__(self, sequences: List[Sequence] = None):
         if sequences is None:
             self.sequences = []
+            self.distmat = None
         else:
             self.sequences = sequences
+            self.distmat = Distmat(self)
         self.index = 0
 
     def __str__(self):
         return "\n".join(repr(sequence) for sequence in self.sequences)
 
+    def __getitem__(
+        self,
+        key
+    ):
+        return self.sequences[key]
+
+    def __len__(self):
+        return len(self.sequences)
+
     def __iter__(self):
+        self.index = 0
         return self
 
     def __next__(self):
@@ -69,12 +87,10 @@ class Fasta: #{{{
         self.index += 1
         return sequence
 
-    def __len__(self):
-        return len(self.sequences)
-
     def add(self, new: Union['Sequence', 'Fasta', List['Sequence']]) -> None:
         if isinstance(new, Sequence):
             self.sequences.append(new)
+            self.distmat = Distmat(self)
         elif isinstance(new, list):
             for sequence in new:
                 self.add(sequence)
@@ -84,6 +100,7 @@ class Fasta: #{{{
 
     def delete(self, index: int) -> None:
         del self.sequences[index]
+        self.distmat = Distmat(self)
 
     def get(self, index:int) -> Sequence:
         return self.sequences[index]
@@ -102,6 +119,7 @@ class Fasta: #{{{
     def redit(self, edit: Tuple[str, str], field: str = "header"):
         for sequence in self.sequences:
             sequence.redit(edit=edit, field=field)
+        self.distmat = Distmat(self)
 
     def write(self, filename: str, line_length=0) -> None:
         write_string = ""
@@ -141,4 +159,196 @@ class Fasta: #{{{
             current_header = f">{identifier}{current_header[1:]}"
             sequence = Sequence(header=current_header, sequence=current_sequence)
             self.sequences.append(sequence)
+        self.distmat = Distmat(self)
+
+    def align( #{{{
+        self,
+    ) -> Fasta:
+        command = ["clustalo", "--distmat-out=out.txt", "-i", "-"]
+        process = subprocess.Popen(
+            command,
+            stdin = subprocess.PIPE,
+            stdout = subprocess.PIPE,
+            stderr = subprocess.PIPE,
+        )
+        stdout, _ = process.communicate(input=str(self).encode())
+
+        result = Fasta()
+        result.read(
+            input_file=stdout.decode("utf-8").replace("\\n", "\n"),
+            from_file=False
+        )
+        return result
+    #}}}
+
+    def distmat( #{{{
+        self
+    ):
+        return Distmat(self)
+    #}}}
+
+#}}}
+
+class Distmat: #{{{
+    matrix: List[List[float]]
+    labels: List[str]
+
+    def __init__(self, matrix, labels=None):
+        # Check if the matrix is a tuple (x, y) and initialize a zero matrix
+        if isinstance(matrix, int):
+            if matrix <= 0:
+                raise ValueError("Matrix dimension must be a positive integer.")
+            matrix = [[0.0 for _ in range(matrix)] for _ in range(matrix)]
+        elif isinstance(matrix, Fasta):
+            self.matrix, self.labels = self._from_fasta(matrix)
+            return
+        else:
+            # Check if the matrix is quadratic (number of rows == number of columns)
+            if not all(len(row) == len(matrix) for row in matrix):
+                raise ValueError("The given matrix is not quadratic (must have the same number of rows and columns).")
+        
+        self.matrix = matrix
+
+        # Generate labels if none are provided
+        if labels is None:
+            size = len(matrix)
+            self.labels = self._generate_labels(size)
+        else:
+            if len(labels) != len(matrix):
+                raise ValueError("The number of labels must match the size of the matrix.")
+            self.labels = labels
+
+    def _from_fasta(self, fasta):
+        command = ["clustalo", "--full", "--force", "--distmat-out=/dev/stdout", "-o", "/dev/null", "-i", "-"]
+        process = subprocess.Popen(
+            command,
+            stdin = subprocess.PIPE,
+            stdout = subprocess.PIPE,
+            stderr = subprocess.PIPE,
+        )
+        stdout, _ = process.communicate(input=str(fasta).encode())
+
+        labels = []
+        matrix = []
+
+        for line in stdout.decode("utf-8").splitlines()[1:]:
+            parts = line.split()
+            labels.append(parts[0])
+            matrix.append([float(x) for x in parts[1:]])
+
+        return (matrix, labels)
+
+    def _generate_labels(self, size):
+        # Generate labels like A, B, ..., Z, AA, AB, ..., ZZ, AAA, ...
+        labels = []
+        alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        length = 1
+
+        while len(labels) < size:
+            for i in range(len(alphabet) ** length):
+                label = ""
+                num = i
+                for _ in range(length):
+                    label = alphabet[num % len(alphabet)] + label
+                    num //= len(alphabet)
+                labels.append(label)
+                if len(labels) == size:
+                    break
+            length += 1
+
+        return labels
+
+    def __str__(self):
+        # Determine the padding dynamically based on the largest number in the matrix
+        max_val = max(max(row) for row in self.matrix)
+        value_padding = len(str(max_val)) + 1
+
+        # Determine the padding based on the longest label
+        label_padding = max(len(label) for label in self.labels)
+
+        # Final padding is the maximum of value_padding and label_padding
+        padding = max(value_padding, label_padding)
+
+        # Create the header with column labels
+        header = " " * (label_padding + 1) + " ".join(f"{label:>{padding}}" for label in self.labels)
+
+        # Create rows with row labels and values
+        rows = []
+        for label, row in zip(self.labels, self.matrix):
+            row_str = " ".join(f"{val:>{padding}}" for val in row)
+            rows.append(f"{label:<{label_padding}} {row_str}")
+
+        # Combine header and rows into the final string
+        return f"{header}\n" + "\n".join(rows)
+
+    def __iter__(self):
+    
+        self._iterator = (item for row in self.matrix for item in row)
+        return self._iterator
+
+    def __next__(self):
+        if self._iterator is None:
+            self.__iter__()
+        return next(self._iterator)
+
+    def __len__(self):
+        return sum(len(row) for row in self.matrix)
+
+    def __eq__(self, other):
+        if not isinstance(other, Distmat):
+            return False
+        return self.matrix == other.matrix
+
+    def __lt__(self, other):
+        if not isinstance(other, Distmat):
+            return NotImplemented
+        return sum(sum(row) for row in self.matrix) < sum(sum(row) for row in other.matrix)
+
+    def smallest(self, matrix:List[List[float]]) -> Tuple[int, int]:
+        result = (-1, -1)
+        current_min = float("inf")
+        for i, row in enumerate(matrix):
+            for j, col in enumerate(row):
+                if col < current_min and i != j:
+                    current_min = col
+                    result = (i, j)
+        return result
+
+    def _join_cells(_, matrix:List[List[float]], labels:List[str], a:int, b:int, dist:bool=False):
+        if b<a: a,b = b,a
+        labels.append(
+                f"({labels[a]},{labels[b]}{":"+str(matrix[a][b]) if dist else ""})"
+        )
+        del labels[b]
+        del labels[a]
+
+        a_dists = matrix[a]
+        b_dists = matrix[b]
+        new_dists = []
+
+        # row
+        for i in range(0, len(a_dists)):
+            new_dists.append((a_dists[i] + b_dists[i])/2)
+        new_dists.append(0.0)
+        matrix.append(new_dists)
+
+        # col
+        for i in range(0, len(matrix)-1):
+            matrix[i].append(new_dists[i])
+
+        # deleting
+        for row in range(0, len(matrix)):
+            del matrix[row][b]
+            del matrix[row][a]
+        del matrix[b]
+        del matrix[a]
+        return matrix,labels
+
+    def upgma(self, distances:bool=False) -> str:
+        matrix = self.matrix[:]
+        labels = self.labels[:]
+        while len(labels) > 1:
+            a, b = self.smallest(matrix)
+            self._join_cells(matrix, labels, a, b, distances)
+        return labels[0]
 #}}}
