@@ -5,9 +5,12 @@
 # TODO: add pydoc string
 from __future__ import annotations
 from typing import List, Tuple, Union
+from Bio import Phylo
+from io import StringIO
 import re
 import subprocess
 import os
+import copy
 
 import io_helpers as io
 
@@ -314,41 +317,70 @@ class Distmat: #{{{
                     result = (i, j)
         return result
 
-    def _join_cells(_, matrix:List[List[float]], labels:List[str], a:int, b:int, dist:bool=False):
-        if b<a: a,b = b,a
-        labels.append(
-                f"({labels[a]},{labels[b]}{":"+str(matrix[a][b]) if dist else ""})"
-        )
-        del labels[b]
-        del labels[a]
+    def _join_cells(
+            _,
+            matrix: List[List[float]],
+            labels: List[str],
+            a: int,
+            b: int,
+            distances: bool = False
+    ):
+        if b < a: 
+            a, b = b, a
+
+        # Calculate branch lengths for a and b
+        branch_length_a = matrix[a][b] / 2
+        branch_length_b = matrix[a][b] / 2
+
+        # Create a new label for the merged cluster
+        if distances:
+            new_label = f"({labels[a]}:{branch_length_a},{labels[b]}:{branch_length_b})"
+        else:
+            new_label = f"({labels[a]},{labels[b]})"
+
+        # Create a new labels list to avoid modifying the original
+        new_labels = labels[:]
+        new_labels.append(new_label)
+        del new_labels[b]
+        del new_labels[a]
 
         a_dists = matrix[a]
         b_dists = matrix[b]
         new_dists = []
 
-        # row
+        # Row
         for i in range(0, len(a_dists)):
-            new_dists.append((a_dists[i] + b_dists[i])/2)
+            new_dists.append((a_dists[i] + b_dists[i]) / 2)
         new_dists.append(0.0)
         matrix.append(new_dists)
 
-        # col
-        for i in range(0, len(matrix)-1):
+        # Column
+        for i in range(0, len(matrix) - 1):
             matrix[i].append(new_dists[i])
 
-        # deleting
+        # Deleting
         for row in range(0, len(matrix)):
             del matrix[row][b]
             del matrix[row][a]
         del matrix[b]
         del matrix[a]
-        return matrix,labels
+        return matrix, new_labels
 
-    def upgma(self, distances:bool=False) -> str:
-        matrix = self.matrix[:]
-        labels = self.labels[:]
+    def upgma(
+            self,
+            distances: bool = False,
+            draw:bool = False
+    ) -> str:
+        # Create deep copies of matrix and labels
+        matrix = copy.deepcopy(self.matrix)
+        labels = copy.deepcopy(self.labels)
+        
         while len(labels) > 1:
             a, b = self.smallest(matrix)
-            self._join_cells(matrix, labels, a, b, distances)
-        return labels[0]
+            matrix, labels = self._join_cells(matrix, labels, a, b, distances)
+        if draw:
+            Phylo.draw(Phylo.read(StringIO(labels[0]), "newick"))
+        else:
+            return labels[0]
+
 #}}}
