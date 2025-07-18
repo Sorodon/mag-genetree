@@ -32,6 +32,11 @@ class Sequence: #{{{
     def __len__(self):
         return len(self.sequence)
 
+    def __lt__(self, other):
+        if not isinstance(other, Sequence):
+            return NotImplemented
+        return len(self) < len(other)
+
     def __eq__(self, other):
         return self.sequence == other.sequence
 
@@ -93,12 +98,12 @@ class Fasta: #{{{
     def add(self, new: Union['Sequence', 'Fasta', List['Sequence']]) -> None:
         if isinstance(new, Sequence):
             self.sequences.append(new)
-            self.distmat = Distmat(self)
         elif isinstance(new, list):
             for sequence in new:
                 self.add(sequence)
         elif isinstance(new, Fasta):
             self.add(new.sequences)
+        self.distmat = Distmat(self)
 
 
     def delete(self, index: int) -> None:
@@ -167,7 +172,7 @@ class Fasta: #{{{
     def align( #{{{
         self,
     ) -> Fasta:
-        command = ["clustalo", "--distmat-out=out.txt", "-i", "-"]
+        command = ["clustalo", "-i", "-"]
         process = subprocess.Popen(
             command,
             stdin = subprocess.PIPE,
@@ -188,6 +193,36 @@ class Fasta: #{{{
         self
     ):
         return Distmat(self)
+    #}}}
+
+    def count( #{{{
+        self,
+        symbol: str = '-',
+        stats: bool = False
+    ) -> int | list[float]:
+        if not stats:
+            # Count occurrences of `symbol` across all sequences
+            amount = 0
+            for sequence in self.sequences:
+                amount += sequence.sequence.count(symbol)
+            return amount
+        else:
+            # Determine the length of the shortest sequence
+            if not self.sequences:
+                return []
+
+            min_length = min(len(sequence.sequence) for sequence in self.sequences)
+            num_sequences = len(self.sequences)
+            fractions = []
+
+            # Count occurrences of `symbol` for each column up to the shortest sequence length
+            for col in range(min_length):
+                count_symbol = sum(
+                    1 for sequence in self.sequences if sequence.sequence[col] == symbol
+                )
+                fractions.append(count_symbol / num_sequences)
+
+            return fractions
     #}}}
 
 #}}}
@@ -234,7 +269,7 @@ class Distmat: #{{{
         labels = []
         matrix = []
 
-        for line in stdout.decode("utf-8").splitlines()[1:]:
+        for line in stdout.decode("utf-8").splitlines()[1:len(fasta)]:
             parts = line.split()
             labels.append(parts[0])
             matrix.append([float(x) for x in parts[1:]])
