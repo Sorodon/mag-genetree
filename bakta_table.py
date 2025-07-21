@@ -48,6 +48,7 @@ class Bakta_table: #{{{
     #}}}
 
     def __iter__(self): #{{{
+        self.index = 0
         return self
     #}}}
 
@@ -66,17 +67,20 @@ class Bakta_table: #{{{
 
     def read( #{{{
         self, 
-        filepath,
-        sep = "\t",
-        skip = 0
+        filepath:Union[str, List[str]],
+        sep:str = "\t",
+        skip:int = 0
     ):
-        file = io.parse_csv(
-            filepath = filepath,
-            sep = sep,
-            header_row = True,
-            skip = skip
-        )
-        self.table = self.table + file
+        if isinstance(filepath, str):
+            filepath = [filepath]
+        for entry in filepath:
+            file = io.parse_csv(
+                filepath = entry,
+                sep = sep,
+                header_row = True,
+                skip = skip
+            )
+            self.table = self.table + file
     #}}}
 
     def find( #{{{
@@ -101,19 +105,37 @@ class Bakta_table: #{{{
                         result.append(entry)
             return result
     #}}}
-#}}}
 
-def get_uniprot( #{{{
-        annotation: dict,
-        field: str = "DbXrefs",
-        level: int = 100
-) -> str:
-    None
-    pattern = rf"UniRef:UniRef{level}_([a-zA-Z0-9]+)"
-    if annotation.get(field) is not None:
-        match = re.search(pattern, annotation.get(field))
-        if match:
-            return match.group(1)
+    def get_uniref( #{{{
+        self,
+        locus_tag: str,
+        level: int
+    ) -> Optional[str]:
+        # Find the entry based on the locus tag
+        entry = self.find(locus_tag, "locus tag")
+
+        # Ensure there's only one entry
+        if len(entry) > 1:
+            raise ValueError(f"Multiple entries for <{locus_tag}>")
+        elif len(entry) == 0:
+            return None  # No entry found
+        
+        # Extract the single entry
+        entry = entry[0]
+        
+        # Define the regex pattern for the UniRef ID
+        pattern = rf"UniRef:UniRef{level}_([a-zA-Z0-9]+)"
+        
+        # Check if the 'locus tag' field exists and extract the UniRef ID
+        locus_tag_field = entry.get('dbxrefs')
+        if locus_tag_field:
+            match = re.search(pattern, locus_tag_field)
+            if match:
+                return match.group(1)
+        
+        # Return None if no match is found
+        return None
+    #}}}
 #}}}
 
 if __name__ == "__main__":
