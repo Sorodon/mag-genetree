@@ -64,12 +64,11 @@ class Fasta: #{{{
     distmat: Distmat
 
     def __init__(self, sequences: List[Sequence] = None):
+        self.distmat = None
         if sequences is None:
             self.sequences = []
-            self.distmat = None
         else:
             self.sequences = sequences
-            self.distmat = Distmat(self)
         self.index = 0
 
     def __str__(self):
@@ -103,12 +102,10 @@ class Fasta: #{{{
                 self.add(sequence)
         elif isinstance(new, Fasta):
             self.add(new.sequences)
-        self.distmat = Distmat(self)
 
 
     def delete(self, index: int) -> None:
         del self.sequences[index]
-        self.distmat = Distmat(self)
 
     def get(self, index:int) -> Sequence:
         return self.sequences[index]
@@ -127,7 +124,6 @@ class Fasta: #{{{
     def redit(self, edit: Tuple[str, str], field: str = "header"):
         for sequence in self.sequences:
             sequence.redit(edit=edit, field=field)
-        self.distmat = Distmat(self)
 
     def write(self, filename: str, line_length=0) -> None:
         write_string = ""
@@ -167,7 +163,6 @@ class Fasta: #{{{
             current_header = f">{identifier}{current_header[1:]}"
             sequence = Sequence(header=current_header, sequence=current_sequence)
             self.sequences.append(sequence)
-        self.distmat = Distmat(self)
 
     def align( #{{{
         self,
@@ -223,6 +218,15 @@ class Fasta: #{{{
                 fractions.append(count_symbol / num_sequences)
 
             return fractions
+    #}}}
+
+    def cd( #{{{
+        self
+    ) -> None:
+        """
+        [C]alculate a [d]istance matrix for this fasta.
+        """
+        self.distmat = Distmat(self)
     #}}}
 
 #}}}
