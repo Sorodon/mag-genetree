@@ -110,26 +110,29 @@ def main( # {{{
     names = [name for _, name in data]
     fasta = concat_fastas(fastas, names=names)
 
+    # Run diamond on it
     start_time = time.time()
     clusters = diamond(fasta, threshold, verbose=verbose, executable=diamond_path)
     end_time = time.time()
-    if verbose: print(f"Diamond took: {(end_time-start_time):.4f}s")
+    if verbose: print(f">>> Diamond took: {(end_time-start_time):.4f}s")
 
+    # Turn links into an actual list
     start_time = time.time()
     clusters = grow_clusters(clusters)
     end_time = time.time()
-    if verbose: print(f"Growing took: {(end_time-start_time):.4f}s")
+    if verbose: print(f">>> Growing took: {(end_time-start_time):.4f}s")
 
+    # purge clusters with less than two members
     start_time = time.time()
     clusters = purge_clusters(clusters)
     end_time = time.time()
-    # [print(cluster) for cluster in clusters]
-    if verbose: print(f"Purging took: {(end_time-start_time):.4f}s")
+    if verbose: print(f">>> Purging took: {(end_time-start_time):.4f}s")
 
+    # Turn locus tags into actual sequences
     start_time = time.time()
     clusters = parse_clusters(clusters, fasta)
     end_time = time.time()
-    if verbose: print(f"Parsing took: {(end_time-start_time):.4f}s")
+    if verbose: print(f">>> Parsing took: {(end_time-start_time):.4f}s")
 
     return clusters
 # }}}
@@ -281,5 +284,5 @@ if __name__ == "__main__": # {{{
         threshold = THRESHOLD,
         verbose = args.verbose
     )
-    [print(cluster) for cluster in clusters]
+    [print(cluster, "\n") for cluster in clusters]
 # }}}
