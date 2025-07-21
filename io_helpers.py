@@ -65,7 +65,8 @@ def parse_csv( #{{{
         filepath: str,
         sep: str = ",",
         header_row: bool = False,
-        skip: int = 0
+        skip: int = 0,
+        header_lc:bool = True
 ) -> List[List[str]]:
     """
     Parse a csv (or similar file) and return a list of lists (containing columns)
@@ -75,11 +76,14 @@ def parse_csv( #{{{
         sep (str, optional): The separator for columns. (defaults to ',')
         header_row (bool): If True, will output a list of dictionaries with named column fields using the first row as names. (defaults to False)
         skip (int): Skips the specified amount of rows from the top of the file. (defaults to 0)
+        header_lc (bool): If True will convert all header fields to lower case. (defaults to True)
 
     Returns:
         List[List[str, ...]]: A list of lists, one list per line with as many strings as defined in columns.
     """
     contents = read_file(filepath=filepath, lines=True)
+    if not contents:
+        return []
     contents = contents[skip:]
     result = []
     for line in contents:
@@ -92,6 +96,8 @@ def parse_csv( #{{{
     if header_row:
         dicts = []
         header = result.pop(0)
+        if header_lc:
+            header = [entry.lower() for entry in header]
         for line in result:
             resulting_dict = {}
             for index, field in enumerate(header):
