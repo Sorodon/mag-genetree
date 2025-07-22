@@ -273,12 +273,13 @@ class Distmat: #{{{
         labels = []
         matrix = []
 
-        for line in stdout.decode("utf-8").splitlines()[1:len(fasta)]:
+        for line in stdout.decode("utf-8").splitlines()[1:len(fasta)+1]:
             parts = line.split()
             labels.append(parts[0])
             matrix.append([float(x) for x in parts[1:]])
 
-        return (matrix, labels)
+        return matrix, labels
+
 
     def _generate_labels(self, size):
         # Generate labels like A, B, ..., Z, AA, AB, ..., ZZ, AAA, ...
