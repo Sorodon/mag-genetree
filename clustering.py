@@ -99,6 +99,7 @@ def main( # {{{
         data_file: str,
         diamond_path: str,
         threshold: int,
+        method:str = "cluster",
         verbose: bool = False
 ):
     data = io.parse_csv(
@@ -185,12 +186,13 @@ def diamond( #{{{
     fasta: fs.Fasta,
     threshold: int,
     executable: str = "./diamond/diamond",
+    method:str = "cluster",
     verbose:bool = False
-) -> List[fs.Fasta]:
+) -> List[set]:
     fasta.write("diamond_in")
     command = [
         executable,
-        "cluster",
+        method,
         "-d",
         "diamond_in.fasta",
         "-o",
