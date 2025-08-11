@@ -23,7 +23,7 @@ def filter_gaps( #{{{
     absolute:bool = False
 ) -> List[fs.Fasta]:
     if absolute:
-        return [fasta for fasta in clusters if fasta.count()<=threshold]
+        return clusters
     else:
         return [fasta for fasta in clusters if fasta.count()<=threshold]
 #}}}
@@ -35,7 +35,8 @@ def filter_uniref( #{{{
     threshold:int = 1,
     level:int = 100,
     stats:bool = False,
-    accept_missing:bool = True
+    accept_missing:bool = True,
+    sep:str = "-"
 ) -> List[fs.Fasta] | Tuple[List[fs.Fasta], dict]:
     result = []
     stat_dict = {}
@@ -43,7 +44,10 @@ def filter_uniref( #{{{
         ids = set()
         missing_id = False
         for seq in cluster:
-            bin, _, tag = seq.header.partition("-")
+            if sep:
+                _, _, tag = seq.header.partition(sep)
+            else:
+                tag = seq.header
             id = lookup.get_uniref(tag.split(' ', 1)[0], level)
             if id:
                 ids.add(id)
