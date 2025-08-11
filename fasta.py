@@ -5,7 +5,6 @@
 # TODO: add pydoc string
 from __future__ import annotations
 from typing import List, Tuple, Union
-from Bio import Phylo
 from io import StringIO
 import re
 import subprocess
@@ -419,6 +418,7 @@ class Distmat: #{{{
             a, b = self.smallest(matrix)
             matrix, labels = self._join_cells(matrix, labels, a, b, distances)
         if draw:
+            from Bio import Phylo
             Phylo.draw(Phylo.read(StringIO(labels[0]), "newick"))
         else:
             return labels[0]
