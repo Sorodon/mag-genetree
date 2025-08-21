@@ -4,7 +4,7 @@
 
 # TODO: add docstrings
 
-import argparse
+import argparse, os
 
 import clustering as cl
 import filtering as fl
@@ -15,7 +15,8 @@ def main(
     data_file,
     diamond_path,
     threshold,
-    verbose = False,
+    verbose:bool = False,
+    alignment_path:str = None,
     method:str = "cluster",
     size_threshold = 2,
     gaps_threshold = 1,
@@ -63,6 +64,12 @@ def main(
         clusters = fl.filter_uniref(clusters, lookup, uniref50_threshold, level=50)
 
     if verbose: print(f">>> Filtering done ({len(clusters)} Clusters left)")
+    
+    # Saving Alginments
+    if alignment_path:
+        for index, cluster in enumerate(clusters):
+            cluster.write(os.path.join(alignment_path, f"{index:0{len(str(len(clusters)))}}"))
+    if verbose: print(f">>> Alignments have been saved to {alignment_path}")
 
 
     # Step 4: Distance matrices
@@ -101,6 +108,13 @@ if __name__ == "__main__":
         "--out",
         metavar = "FILE",
         help = "The output file to save the trees to. Omitting will return to stdout.",
+        type = str
+    )
+    parser.add_argument(
+        "-a",
+        "--alignment_out",
+        metavar = "FOLDER",
+        help = "The path where to save the alignment for each cluster as separate fasta. Not saved if omitted.",
         type = str
     )
     parser.add_argument(
@@ -168,6 +182,7 @@ if __name__ == "__main__":
     params = {"data_file": args.DATA}
     params["diamond_path"] = DIAMOND
     params["threshold"] = THRESHOLD
+    if args.alignment_out: params["alignment_path"] = args.alignment_out
     if args.linclust: params["method"] = "linclust"
     if args.verbose: params["verbose"] = args.verbose
     if args.size: params["size_threshold"] = args.size
