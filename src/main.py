@@ -18,7 +18,7 @@ def main(
     verbose:bool = False,
     alignment_path:str = None,
     method:str = "cluster",
-    size_threshold = 2,
+    size_threshold = 3,
     gaps_threshold = 1,
     uniref_lookup = None,
     uniref50_threshold = float('inf'),
@@ -47,7 +47,7 @@ def main(
     clusters = fl.filter_size(clusters, size_threshold)
     # 3.2 By gaps
     if verbose: print(">>> Start filtering by gaps")
-    clusters = fl.filter_gaps(clusters, gaps_threshold)
+    clusters = fl.filter_gaps(clusters, threshold=gaps_threshold, absolute=False, average=True)
     # 3.3 By UniRef ID
     if uniref_lookup:
         paths = [row[0] for row in io.parse_csv(uniref_lookup)]

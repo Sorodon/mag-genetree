@@ -20,12 +20,10 @@ def filter_size( #{{{
 def filter_gaps( #{{{
     clusters:List[fs.Fasta],
     threshold:int,
-    absolute:bool = False
+    absolute:bool = False,
+    average:bool = True
 ) -> List[fs.Fasta]:
-    if absolute:
-        return clusters
-    else:
-        return [fasta for fasta in clusters if fasta.count()<=threshold]
+    return [fasta for fasta in clusters if fasta.count(symbol="-", absolute=absolute, average=average)<=threshold]
 #}}}
 
 ## UniRefID

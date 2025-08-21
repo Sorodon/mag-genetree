@@ -56,6 +56,11 @@ class Sequence: #{{{
             self.sequence = re.sub(edit[0], edit[1], self.sequence)
         else:
             raise ValueError(f"Valid fields: header, sequence (provided: {field})")
+
+    def count(self, symbol:str="-", relative:bool=False) -> Union[int,float]:
+        total = len([occurence for occurence in self.sequence if occurence == symbol])
+        return total if not relative else total/len(self.sequence)
+
 #}}}
 
 class Fasta: #{{{
@@ -192,31 +197,15 @@ class Fasta: #{{{
     def count( #{{{
         self,
         symbol: str = '-',
-        stats: bool = False
+        absolute:bool = False,
+        average:bool = True,
     ) -> int | list[float]:
-        if not stats:
-            # Count occurrences of `symbol` across all sequences
-            amount = 0
-            for sequence in self.sequences:
-                amount += sequence.sequence.count(symbol)
-            return amount
-        else:
-            # Determine the length of the shortest sequence
-            if not self.sequences:
-                return []
-
-            min_length = min(len(sequence.sequence) for sequence in self.sequences)
-            num_sequences = len(self.sequences)
-            fractions = []
-
-            # Count occurrences of `symbol` for each column up to the shortest sequence length
-            for col in range(min_length):
-                count_symbol = sum(
-                    1 for sequence in self.sequences if sequence.sequence[col] == symbol
-                )
-                fractions.append(count_symbol / num_sequences)
-
-            return fractions
+        if absolute and not average:
+            return sum([sequence.count(symbol=symbol, relative=False) for sequence in self.sequences])
+        elif absolute and average:
+            return sum([sequence.count(symbol=symbol, relative=False) for sequence in self.sequences])/len(self)
+        elif not absolute:
+            return sum([sequence.count(symbol=symbol, relative=True) for sequence in self.sequences])/len(self)
     #}}}
 
     def cd( #{{{
