@@ -4,7 +4,7 @@
 
 # TODO: add docstrings
 
-import argparse, os
+import argparse, os, time
 
 import clustering as cl
 import filtering as fl
@@ -16,54 +16,82 @@ def main(
     diamond_path,
     threshold,
     verbose:bool = False,
+    timing:bool = True,
     alignment_path:str = None,
     method:str = "cluster",
     size_threshold = 3,
     gaps_threshold = 1,
+    length_threshold = 1,
     uniref_lookup = None,
     uniref50_threshold = float('inf'),
     uniref90_threshold = float('inf'),
     uniref100_threshold = float('inf'),
     out_file = None
 ):
-    
+    start_time_total = time.time()   
     # Step 1: Creating clusters with diamond
+    if verbose: print(">>> Start Clustering")
+    time_clustering = time.time()
     clusters = cl.main(
         data_file = data_file,
         diamond_path = diamond_path,
         threshold = threshold,
         method = method,
-        verbose = verbose
+        verbose = timing
     )
-    if verbose: print(f">>> Diamond found {len(clusters)} clusters")
+    if verbose: print(f"Diamond found {len(clusters)} clusters")
+    if timing: print(f"Clustering took: {time.time()-time_clustering}")
 
-    if verbose: print(">>> Start Aligning Clusters")
+    if verbose: print(f">>> Start Aligning Clusters")
+    time_aligning = time.time()
     # Step 2: Aligning
     clusters = [cluster.align() for cluster in clusters]
+    if timing: print(f"Aligning took: {time.time()-time_aligning}")
     
     # Step 3: Filtering
+    if verbose: print(f">>> Start Aligning Clusters")
+    time_filter = time.time()
     # 3.1 By size
-    if verbose: print(">>> Start filtering by size")
+    if verbose: print(f"\t>>> Start filtering by size ({len(clusters)} clusters left)")
+    time_filter_size = time.time()
     clusters = fl.filter_size(clusters, size_threshold)
+    if timing: print(f"\tSize filtering took: {time.time()-time_filter_size}")
     # 3.2 By gaps
-    if verbose: print(">>> Start filtering by gaps")
+    if verbose: print(f"\t>>> Start filtering by gaps ({len(clusters)} clusters left)")
+    time_filter_gaps =  time.time()
     clusters = fl.filter_gaps(clusters, threshold=gaps_threshold, absolute=False, average=True)
+    if timing: print(f"\tGap filtering took: {time.time()-time_filter_gaps}")
     # 3.3 By UniRef ID
     if uniref_lookup:
+        if verbose: print(f"\t>>> Start filtering by UniRefIDs ({len(clusters)} clusters left)")
+        time_filter_uniref = time.time()
         paths = [row[0] for row in io.parse_csv(uniref_lookup)]
         lookup = bt.Bakta_table()
         lookup.read(paths, skip=5)
         # 3.3.1 UniRef100
-        if verbose: print(">>> Start filtering by UniRef100 IDs")
+        if verbose: print(f"\t\t>>> Start filtering by UniRef100 IDs ({len(clusters)} clusters left)")
+        time_filter_uniref_100 = time.time()
         clusters = fl.filter_uniref(clusters, lookup, uniref100_threshold, level=100)
+        if timing: print(f"\t\tUniRef100 filtering took {time.time()-timed-filter_uniref_100}")
         # 3.3.2 UniRef90
-        if verbose: print(">>> Start filtering by UniRef90 IDs")
+        if verbose: print(f"\t\t>>> Start filtering by UniRef90 IDs ({len(clusters)} clusters left)")
+        time_filter_uniref_90 = time.time()
         clusters = fl.filter_uniref(clusters, lookup, uniref90_threshold, level=90)
+        if timing: print(f"\t\tUniRef90 filtering took {time.time()-timed-filter_uniref_90}")
         # 3.3.3 UniRef50
-        if verbose: print(">>> Start filtering by UniRef50 IDs")
+        if verbose: print(f"\t\t>>> Start filtering by UniRef50 IDs ({len(clusters)} clusters left)")
+        time_filter_uniref_50 = time.time()
         clusters = fl.filter_uniref(clusters, lookup, uniref50_threshold, level=50)
+        if timing: print(f"\t\tUniRef50 filtering took {time.time()-timed-filter_uniref_50}")
+        if timing: print(f"\tUniRef filtering took {time.time()-timed-filter_uniref}")
+    # 3.4 By Length
+    if verbose: print(f"\t>>> Start filtering by length ({len(clusters)} clusters left)")
+    time_filter_length = time.time()
+    clusters = fl.filter_length(clusters, threshold=length_threshold)
+    if timing: print(f"\tLength filtering took: {time.time()-time_filter_length}")
 
     if verbose: print(f">>> Filtering done ({len(clusters)} Clusters left)")
+    if timing: print(f"Filtering took: {time.time()-time_filter}")
     
     # Saving Alginments
     if alignment_path:
@@ -74,12 +102,16 @@ def main(
 
     # Step 4: Distance matrices
     if verbose: print(">>> Start calculating distance matrices")
+    time_distmatrices = time.time()
     for cluster in clusters:
         cluster.cd()
+    if timing: print(f"Calculating distance matrices took: {time.time()-time_distmatrices}")
 
     # Step 5: Trees
-    if verbose: print(">>> Start calculating distance matrices")
+    if verbose: print(">>> Start calculating trees")
+    time_trees = time.time()
     trees = [cluster.distmat.upgma() for cluster in clusters]
+    if timing: print(f"Calculating Trees took: {time.time()-time_trees}")
 
     # Step 6: Output
     if out_file:
@@ -136,15 +168,26 @@ if __name__ == "__main__":
         help = "Set to show more detailed output"
     )
     parser.add_argument(
+        "--timing",
+        action = "store_true",
+        help = "Whether to show detailed timing information"
+    )
+    parser.add_argument(
         "--size",
         metavar = "CLUSTER_SIZE",
-        help = "The minimal cluster size to keep, defaults to 2",
+        help = "The minimal cluster size to keep, defaults to 3",
         type = int
     )
     parser.add_argument(
         "--gaps",
         metavar = "GAP_RATE",
         help = "The max gap rate to keep",
+        type = float
+    )
+    parser.add_argument(
+        "--length",
+        metavar = "LENGTH_DIFFERENCE",
+        help = "The max difference in sequence length (relative) to keep",
         type = float
     )
     parser.add_argument(
@@ -185,8 +228,10 @@ if __name__ == "__main__":
     if args.alignment_out: params["alignment_path"] = args.alignment_out
     if args.linclust: params["method"] = "linclust"
     if args.verbose: params["verbose"] = args.verbose
+    if args.timing: params["timing"] = args.timing
     if args.size: params["size_threshold"] = args.size
     if args.gaps: params["gaps_threshold"] = args.gaps
+    if args.length: params["length_threshold"] = args.length
     if args.lookup: params["uniref_lookup"] = args.lookup
     if args.ur50: params["uniref50_threshold"] = args.ur50
     if args.ur90: params["uniref90_threshold"] = args.ur90

@@ -113,7 +113,7 @@ def main( # {{{
 
     # Run diamond on it
     start_time = time.time()
-    clusters = diamond(fasta, threshold, verbose=verbose, executable=diamond_path)
+    clusters = diamond(fasta, threshold, executable=diamond_path)
     end_time = time.time()
     if verbose: print(f">>> Diamond took: {(end_time-start_time):.4f}s")
 
