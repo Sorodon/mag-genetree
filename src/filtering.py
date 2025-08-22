@@ -62,3 +62,16 @@ def filter_uniref( #{{{
     else:
         return result
 #}}}
+
+## Filter Length difference
+def filter_length( #{{{
+    clusters: List[fs.Fasta],
+    threshold:float
+    ) -> List[fs.Fasta]:
+    result = []
+    for fasta in clusters:
+        ratio = len(min(fasta.sequences)) / len(max(fasta.sequences))
+        if ratio >= 1-threshold:
+            result.append(fasta)
+    return result
+#}}}
