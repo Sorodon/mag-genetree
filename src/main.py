@@ -124,6 +124,8 @@ def main(
     else:
         [print(tree) for tree in trees]
 
+    if timing: print(f"Total Time:: {time.time()-start_time_total:.4f}s")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="main.py") # {{{
 
