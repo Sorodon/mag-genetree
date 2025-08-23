@@ -13,27 +13,27 @@ import time
 
 import fasta as fs
 import io_helpers as io
-
-def flatten_fastas( # {{{
-        fastas: List[fs.Fasta],
-        names: List[str] = [],
-        sep: str = "_",
-        names_sep: str = "-"
-) -> str:
-    """
-    Creates a single string of a list of fastas with optional identifiers
-    """
-    if len(names) != 0 and len(fastas) != len(names):
-        raise ValueError("names and fastas do not match in length!")
-    strings = []
-    for index, fasta in enumerate(fastas):
-        for seq in fasta:
-            if len(names) != 0:
-                strings.append(f"{names[index]}{names_sep}{seq.sequence}")
-            else:
-                strings.append(seq.sequence)
-    return sep.join(strings)
-# }}}
+# Off
+# def flatten_fastas( # {{{
+#         fastas: List[fs.Fasta],
+#         names: List[str] = [],
+#         sep: str = "_",
+#         names_sep: str = "-"
+# ) -> str:
+#     """
+#     Creates a single string of a list of fastas with optional identifiers
+#     """
+#     if len(names) != 0 and len(fastas) != len(names):
+#         raise ValueError("names and fastas do not match in length!")
+#     strings = []
+#     for index, fasta in enumerate(fastas):
+#         for seq in fasta:
+#             if len(names) != 0:
+#                 strings.append(f"{names[index]}{names_sep}{seq.sequence}")
+#             else:
+#                 strings.append(seq.sequence)
+#     return sep.join(strings)
+# # }}}
 
 def concat_fastas( # {{{
         fastas: List[fs.Fasta],
@@ -52,52 +52,52 @@ def concat_fastas( # {{{
     [result.add(fasta) for fasta in fastas]
     return result
 # }}}
-
-def build_clusters( # {{{
-        text: List[str]
-) -> List[Set[str]]:
-    result = []
-    pattern = r"^(bin\.[0-9]{1,2}-\w{6}_\d{5})\t(bin\.[0-9]{1,2}-\w{6}_\d{5})"
-    
-    for line in text:
-        match = re.search(pattern, line)
-        if match:
-            item1, item2 = match.group(1), match.group(2)
-            if item1 != item2:
-                connection = False
-                for cluster in result:
-                    if item1 in cluster or item2 in cluster:
-                        connection = True
-                        cluster.update({item1, item2})
-                        break  # Avoid redundant checks
-                if not connection:
-                    result.append({item1, item2})
-    return result
-# }}}
-
-def read_clusters( # {{{
-    filepath: str,
-) -> List[Set[str]]:
-    file_content = io.read_file(filepath, lines=True)
-    clusters = []
-    for line in file_content:
-        cluster = line.strip()[1:-1]
-        proteins = [protein[1:-1] for protein in cluster.split(", ")]
-        clusters.append(set(proteins))
-    return clusters
-# }}}
-
-def write_clusters( # {{{
-    filepath: str,
-    clusters: List[Set[str]]
-) -> None:
-    file_string = "\n".join([str(cluster) for cluster in clusters])
-    io.write_file(filepath, file_string)
-# }}}
+# Off
+# def build_clusters( # {{{
+#         text: List[str]
+# ) -> List[Set[str]]:
+#     result = []
+#     pattern = r"^(bin\.[0-9]{1,2}-\w{6}_\d{5})\t(bin\.[0-9]{1,2}-\w{6}_\d{5})"
+#     
+#     for line in text:
+#         match = re.search(pattern, line)
+#         if match:
+#             item1, item2 = match.group(1), match.group(2)
+#             if item1 != item2:
+#                 connection = False
+#                 for cluster in result:
+#                     if item1 in cluster or item2 in cluster:
+#                         connection = True
+#                         cluster.update({item1, item2})
+#                         break  # Avoid redundant checks
+#                 if not connection:
+#                     result.append({item1, item2})
+#     return result
+# # }}}
+# Off
+# def read_clusters( # {{{
+#     filepath: str,
+# ) -> List[Set[str]]:
+#     file_content = io.read_file(filepath, lines=True)
+#     clusters = []
+#     for line in file_content:
+#         cluster = line.strip()[1:-1]
+#         proteins = [protein[1:-1] for protein in cluster.split(", ")]
+#         clusters.append(set(proteins))
+#     return clusters
+# # }}}
+# Off
+# def write_clusters( # {{{
+#     filepath: str,
+#     clusters: List[Set[str]]
+# ) -> None:
+#     file_string = "\n".join([str(cluster) for cluster in clusters])
+#     io.write_file(filepath, file_string)
+# # }}}
 
 def main( # {{{
         data_file: str,
-        diamond_path: str,
+        executable: str,
         threshold: int,
         method:str = "cluster",
         verbose: bool = False
@@ -113,9 +113,8 @@ def main( # {{{
 
     # Run diamond on it
     start_time = time.time()
-    clusters = diamond(fasta, threshold, executable=diamond_path)
-    end_time = time.time()
-    if verbose: print(f"Diamond took: {(end_time-start_time):.4f}s")
+    clusters = diamond(fasta, threshold, executable=executable)
+    if verbose: print(f"Diamond took: {(time.time()-start_time):.4f}s")
 
     # Turn links into an actual list
     start_time = time.time()

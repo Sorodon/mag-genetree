@@ -13,7 +13,7 @@ import io_helpers as io
 
 def main(
     data_file,
-    diamond_path,
+    executable,
     threshold,
     verbose:bool = False,
     timing:bool = False,
@@ -34,12 +34,12 @@ def main(
     time_clustering = time.time()
     clusters = cl.main(
         data_file = data_file,
-        diamond_path = diamond_path,
+        executable = executable,
         threshold = threshold,
         method = method,
         verbose = timing
     )
-    if verbose: print(f"Diamond found {len(clusters)} clusters")
+    if verbose: print(f"Clustering found {len(clusters)} clusters")
     if timing: print(f"Clustering took: {time.time()-time_clustering:.4f}s")
 
     # Step 2: Filter by size
@@ -133,8 +133,7 @@ if __name__ == "__main__":
         type=str
     )
     parser.add_argument(
-        "-d",
-        "--diamond",
+        "--diamond_path",
         metavar = "PATH",
         help = "Path to the diamond executable, defaults to './diamond/diamond'",
         type = str
@@ -224,10 +223,11 @@ if __name__ == "__main__":
 
     # Setting defaults
     THRESHOLD = 90 if not args.threshold else args.threshold
-    DIAMOND = "./diamond/diamond" if not args.diamond else args.diamond
+    DIAMOND = "./diamond/diamond" if not args.diamond_path else args.diamond_path
+    executable = DIAMOND
 
     params = {"data_file": args.DATA}
-    params["diamond_path"] = DIAMOND
+    params["executable"] = executable
     params["threshold"] = THRESHOLD
     if args.alignment_out: params["alignment_path"] = args.alignment_out
     if args.linclust: params["method"] = "linclust"
