@@ -217,6 +217,42 @@ class Fasta: #{{{
         self.distmat = Distmat(self)
     #}}}
 
+    def clustalo(
+        self
+    ) -> Fasta:
+        result = Fasta()
+        # Alignment
+        command = ["clustalo", "--full", "--force", "--distmat-out=matrix.temp", "-i", "-"]
+        process = subprocess.Popen(
+            command,
+            stdin = subprocess.PIPE,
+            stdout = subprocess.PIPE,
+            stderr = subprocess.PIPE,
+        )
+        stdout, _ = process.communicate(input=str(self).encode())
+        result.read(
+            input_file=stdout.decode("utf-8").replace("\\n", "\n"),
+            from_file=False
+        )
+
+        # Distance Matrix
+        labels = []
+        matrix = []
+
+        file = io.read_file("matrix.temp")
+        for line in file.splitlines()[1:len(result)+1]:
+            parts = line.split()
+            labels.append(parts[0])
+            matrix.append([float(x) for x in parts[1:]])
+
+        result.distmat = Distmat(matrix=matrix, labels=labels)
+
+        try:
+            os.remove("matrix.temp")
+        except Exception as e:
+            print(f"There was an error removing temporary files: {e}")
+
+        return result
 #}}}
 
 class Distmat: #{{{

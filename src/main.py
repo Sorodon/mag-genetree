@@ -16,7 +16,7 @@ def main(
     diamond_path,
     threshold,
     verbose:bool = False,
-    timing:bool = True,
+    timing:bool = False,
     alignment_path:str = None,
     method:str = "cluster",
     size_threshold = 3,
@@ -40,80 +40,84 @@ def main(
         verbose = timing
     )
     if verbose: print(f"Diamond found {len(clusters)} clusters")
-    if timing: print(f"Clustering took: {time.time()-time_clustering}")
+    if timing: print(f"Clustering took: {time.time()-time_clustering:.4f}s")
 
-    if verbose: print(f">>> Start Aligning Clusters")
-    time_aligning = time.time()
-    # Step 2: Aligning
-    clusters = [cluster.align() for cluster in clusters]
-    if timing: print(f"Aligning took: {time.time()-time_aligning}")
-    
-    # Step 3: Filtering
-    if verbose: print(f">>> Start Aligning Clusters")
-    time_filter = time.time()
-    # 3.1 By size
-    if verbose: print(f"\t>>> Start filtering by size ({len(clusters)} clusters left)")
+    # Step 2: Filter by size
+    if verbose: print(f">>> Start filtering by size ({len(clusters)} clusters left)")
     time_filter_size = time.time()
     clusters = fl.filter_size(clusters, size_threshold)
-    if timing: print(f"\tSize filtering took: {time.time()-time_filter_size}")
-    # 3.2 By gaps
-    if verbose: print(f"\t>>> Start filtering by gaps ({len(clusters)} clusters left)")
+    if timing: print(f"Size filtering took: {time.time()-time_filter_size:.4f}s")
+
+    # Step 3: Aligning matrices
+    # if verbose: print(f">>> Start Aligning Clusters")
+    # time_aligning = time.time()
+    # clusters = [cluster.align() for cluster in clusters]
+    # if timing: print(f"Aligning took: {time.time()-time_aligning:.4f}s")
+
+    # Step 4: Distance matrices
+    # if verbose: print(">>> Start calculating distance matrices")
+    # time_distmatrices = time.time()
+    # for cluster in clusters:
+    #     cluster.cd()
+    # if timing: print(f"Calculating distance matrices took: {time.time()-time_distmatrices:.4f}s")
+
+    # Step 3: Clustalo
+    if verbose: print(">>> Start Alignment and Distance matrix calculation")
+    time_clustalo = time.time()
+    clusters = [cluster.clustalo() for cluster in clusters]
+    if timing: print(f"Aligning took: {time.time()-time_clustalo:.4f}s")
+    
+    # Step 4: Filter by gaps
+    if verbose: print(f">>> Start filtering by gaps ({len(clusters)} clusters left)")
     time_filter_gaps =  time.time()
     clusters = fl.filter_gaps(clusters, threshold=gaps_threshold, absolute=False, average=True)
-    if timing: print(f"\tGap filtering took: {time.time()-time_filter_gaps}")
-    # 3.3 By UniRef ID
+    if timing: print(f"Gap filtering took: {time.time()-time_filter_gaps:.4f}s")
+
+    # Step 5: Filter by UniRef ID
     if uniref_lookup:
-        if verbose: print(f"\t>>> Start filtering by UniRefIDs ({len(clusters)} clusters left)")
+        if verbose: print(f">>> Start filtering by UniRefIDs ({len(clusters)} clusters left)")
         time_filter_uniref = time.time()
         paths = [row[0] for row in io.parse_csv(uniref_lookup)]
         lookup = bt.Bakta_table()
         lookup.read(paths, skip=5)
         # 3.3.1 UniRef100
-        if verbose: print(f"\t\t>>> Start filtering by UniRef100 IDs ({len(clusters)} clusters left)")
+        if verbose: print(f">>> Start filtering by UniRef100 IDs ({len(clusters)} clusters left)")
         time_filter_uniref_100 = time.time()
         clusters = fl.filter_uniref(clusters, lookup, uniref100_threshold, level=100)
-        if timing: print(f"\t\tUniRef100 filtering took {time.time()-timed-filter_uniref_100}")
+        if timing: print(f"UniRef100 filtering took {time.time()-timed-filter_uniref_100:.4f}s")
         # 3.3.2 UniRef90
-        if verbose: print(f"\t\t>>> Start filtering by UniRef90 IDs ({len(clusters)} clusters left)")
+        if verbose: print(f">>> Start filtering by UniRef90 IDs ({len(clusters)} clusters left)")
         time_filter_uniref_90 = time.time()
         clusters = fl.filter_uniref(clusters, lookup, uniref90_threshold, level=90)
-        if timing: print(f"\t\tUniRef90 filtering took {time.time()-timed-filter_uniref_90}")
+        if timing: print(f"UniRef90 filtering took {time.time()-timed-filter_uniref_90:.4f}s")
         # 3.3.3 UniRef50
-        if verbose: print(f"\t\t>>> Start filtering by UniRef50 IDs ({len(clusters)} clusters left)")
+        if verbose: print(f">>> Start filtering by UniRef50 IDs ({len(clusters)} clusters left)")
         time_filter_uniref_50 = time.time()
         clusters = fl.filter_uniref(clusters, lookup, uniref50_threshold, level=50)
-        if timing: print(f"\t\tUniRef50 filtering took {time.time()-timed-filter_uniref_50}")
-        if timing: print(f"\tUniRef filtering took {time.time()-timed-filter_uniref}")
-    # 3.4 By Length
-    if verbose: print(f"\t>>> Start filtering by length ({len(clusters)} clusters left)")
+        if timing: print(f"UniRef50 filtering took {time.time()-timed-filter_uniref_50:.4f}s")
+        if timing: print(f"UniRef filtering took {time.time()-timed-filter_uniref:.4f}s")
+
+    # Step 6: Filter by Length
+    if verbose: print(f">>> Start filtering by length ({len(clusters)} clusters left)")
     time_filter_length = time.time()
     clusters = fl.filter_length(clusters, threshold=length_threshold)
-    if timing: print(f"\tLength filtering took: {time.time()-time_filter_length}")
+    if timing: print(f"Length filtering took: {time.time()-time_filter_length:.4f}s")
 
     if verbose: print(f">>> Filtering done ({len(clusters)} Clusters left)")
-    if timing: print(f"Filtering took: {time.time()-time_filter}")
     
-    # Saving Alginments
+    # Step 7: Saving Alginments
     if alignment_path:
         for index, cluster in enumerate(clusters):
             cluster.write(os.path.join(alignment_path, f"{index:0{len(str(len(clusters)))}}"))
     if verbose: print(f">>> Alignments have been saved to {alignment_path}")
 
-
-    # Step 4: Distance matrices
-    if verbose: print(">>> Start calculating distance matrices")
-    time_distmatrices = time.time()
-    for cluster in clusters:
-        cluster.cd()
-    if timing: print(f"Calculating distance matrices took: {time.time()-time_distmatrices}")
-
-    # Step 5: Trees
+    # Step 8: Trees
     if verbose: print(">>> Start calculating trees")
     time_trees = time.time()
     trees = [cluster.distmat.upgma() for cluster in clusters]
-    if timing: print(f"Calculating Trees took: {time.time()-time_trees}")
+    if timing: print(f"Calculating Trees took: {time.time()-time_trees:.4f}s")
 
-    # Step 6: Output
+    # Step 9: Output
     if out_file:
         if verbose: print(">>> Now writing to file")
         io.write_file(out_file, "\n".join(trees))
