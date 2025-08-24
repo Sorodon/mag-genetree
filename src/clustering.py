@@ -2,8 +2,6 @@
 # vim: set foldclose=all foldlevel=0:
 # vim: set foldenable: 
 
-# TODO: add docstrings
-
 from typing import List, Set, Optional
 import subprocess
 import re
@@ -13,27 +11,6 @@ import time
 
 import fasta as fs
 import io_helpers as io
-# Off
-# def flatten_fastas( # {{{
-#         fastas: List[fs.Fasta],
-#         names: List[str] = [],
-#         sep: str = "_",
-#         names_sep: str = "-"
-# ) -> str:
-#     """
-#     Creates a single string of a list of fastas with optional identifiers
-#     """
-#     if len(names) != 0 and len(fastas) != len(names):
-#         raise ValueError("names and fastas do not match in length!")
-#     strings = []
-#     for index, fasta in enumerate(fastas):
-#         for seq in fasta:
-#             if len(names) != 0:
-#                 strings.append(f"{names[index]}{names_sep}{seq.sequence}")
-#             else:
-#                 strings.append(seq.sequence)
-#     return sep.join(strings)
-# # }}}
 
 def concat_fastas( # {{{
         fastas: List[fs.Fasta],
@@ -42,6 +19,12 @@ def concat_fastas( # {{{
 ) -> fs.Fasta :
     """
     Turns a list of fastas into a single fasta
+    Args:
+        fastas (List[Fasta]): A list of fasta objects to be merged.
+        names: (List[str]): A list of names to prepend to fasta headers to identify them later. Omiting will disable this feature.
+        names_sep (str): A string to separate name from header when marking fastas with names. Defaults to '-'.
+    Returns:
+        Fasta: The merged Fasta object.
     """
     if len(names) != 0 and len(fastas) != len(names):
         raise ValueError("names and fastas do not match in length!")
@@ -52,48 +35,6 @@ def concat_fastas( # {{{
     [result.add(fasta) for fasta in fastas]
     return result
 # }}}
-# Off
-# def build_clusters( # {{{
-#         text: List[str]
-# ) -> List[Set[str]]:
-#     result = []
-#     pattern = r"^(bin\.[0-9]{1,2}-\w{6}_\d{5})\t(bin\.[0-9]{1,2}-\w{6}_\d{5})"
-#     
-#     for line in text:
-#         match = re.search(pattern, line)
-#         if match:
-#             item1, item2 = match.group(1), match.group(2)
-#             if item1 != item2:
-#                 connection = False
-#                 for cluster in result:
-#                     if item1 in cluster or item2 in cluster:
-#                         connection = True
-#                         cluster.update({item1, item2})
-#                         break  # Avoid redundant checks
-#                 if not connection:
-#                     result.append({item1, item2})
-#     return result
-# # }}}
-# Off
-# def read_clusters( # {{{
-#     filepath: str,
-# ) -> List[Set[str]]:
-#     file_content = io.read_file(filepath, lines=True)
-#     clusters = []
-#     for line in file_content:
-#         cluster = line.strip()[1:-1]
-#         proteins = [protein[1:-1] for protein in cluster.split(", ")]
-#         clusters.append(set(proteins))
-#     return clusters
-# # }}}
-# Off
-# def write_clusters( # {{{
-#     filepath: str,
-#     clusters: List[Set[str]]
-# ) -> None:
-#     file_string = "\n".join([str(cluster) for cluster in clusters])
-#     io.write_file(filepath, file_string)
-# # }}}
 
 def main( # {{{
     data_file: str,
@@ -103,6 +44,18 @@ def main( # {{{
     verbose: bool = False,
     nopurge:bool = False
 ):
+    """
+    Main entrypoint into the clustering module
+    Args:
+        data_file (str): The data file to be processed (should contain comma separated fasta paths and names (e.g. 'some/fasta.faa,id1')).
+        executable (str): The path to the diamond executable.
+        threshold (int): The identity threshold to apply when clustering in percent. Should range from 100 to 0.
+        method (str): Can be either 'cluster' or 'linclust' depending on the preferred clustering method. Defaults to 'cluster'.
+        verbose (bool): Whether to print additional info like runtimes of different steps. Defaults to False.
+        nopurge (bool): Whether to keep singluar clusters before parsing. Defaults to False.
+    Returns:
+        List[Fasta]: A list of Fasta objects, each one being one cluster.
+    """
     data = io.parse_csv(
         data_file,
         sep = ",",
@@ -144,6 +97,10 @@ def grow_clusters( #{{{
 ) -> List[Set[str]]:
     """
     Merges all clusters with overlapping elements until only disjoint Sets (Clusters) are left
+    Args:
+         clusters (List[Set[str]]): A list containing sets with identifier strings.
+    Returns:
+        List[Set[str]]: The resulting list of sets. All sets will be disjoint.
     """
     while True:
         new_clusters = []
@@ -168,7 +125,13 @@ def parse_clusters( #{{{
 ) -> List[fs.Fasta]:
     """
     Turn a list of clusters into a list of their respective fasta objects.
-    Raises a ValueError if an object is ambiguous
+    Args:
+        clusters (List[Set[str]]): A list of sets with sequence identifiers.
+        reference (Fasta): A single Fasta object containing all sequences (with identifiers).
+    Returns:
+        List[Fasta]: A list of proper Fasta objects, each being one cluster.
+    Raises:
+        ValueError: If an identifier is ambiguous when looking it up in <reference>.
     """
     result = []
     for cluster in clusters:
@@ -190,6 +153,17 @@ def diamond( #{{{
     method:str = "cluster",
     verbose:bool = False
 ) -> List[set]:
+    """
+    Run diamond on a fasta returning clusters
+    Args:
+        fasta (Fasta): The input Fasta object
+        threshold (int): The identity treshold in percent.
+        executable (str): Path of the diamond executable. Defaults to './diamond/diamond'.
+        method (str): Either 'cluster' or 'linclust' depending on the preferred clustering method. Defaults to 'cluster'.
+        verbose (bool): Whether to allow the output of diamond on stdout. Defaults to False.
+    Returns:
+        List[set]: A list of sets of cardinality 2, each containing two sequence identifiers.
+    """
     fasta.write("diamond_in")
     command = [
         executable,
@@ -234,6 +208,11 @@ def purge_clusters( #{{{
 ) -> List[Set[str]]: 
     """
     Remove all clusters with less than a specified amount of sequences
+    Args:
+        clusters (List[Set[str]]): A list of sets of sequence identifiers
+        min (int): The minimal set size to keep. Defaults to 2.
+    Returns:
+        List[Set[str]]: The <clusters> input with all sets below the <min> threshold size removed.
     """
     return [cluster for cluster in clusters if len(cluster) >= min]
 #}}}

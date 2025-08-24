@@ -2,8 +2,6 @@
 # vim: set foldclose=all foldlevel=0:
 # vim: set foldenable: 
 
-# TODO: add docstrings
-
 from typing import List, Set, Optional, Union
 import re
 
@@ -18,6 +16,13 @@ class Bakta_table: #{{{
         self, 
         table: List[dict] = []
     ):
+        """
+        Create a Bakta_table object
+        Args:
+            table (List[dict]): A list of dictionaries parsed from a bakta tsv. Defaults to an empty list.
+        Returns:
+            None
+        """
         self.table = table
         self.index = 0
     #}}}
@@ -71,6 +76,15 @@ class Bakta_table: #{{{
         sep:str = "\t",
         skip:int = 0
     ):
+        """
+        Read a bakta tsv into the table, expanding it
+        Args:
+            filepath (str | List[str]): Filepath(s) to be read
+            sep (str): The separator for the file(s). Defaults to '\\t'.
+            skip (int): The number of lines to skip before the header row. Defaults to 0.
+        Returns:
+            None
+        """
         if isinstance(filepath, str):
             filepath = [filepath]
         for entry in filepath:
@@ -88,6 +102,14 @@ class Bakta_table: #{{{
         value: str,
         key: str = None
     ) -> List[dict]:
+        """
+        Lookup an entry in the Bakta_table object
+        Args:
+            value (str): The value to search for.
+            key (str, List[str]): The column(s) to look in. Omitting causes the method to look through all columns.
+        Returns:
+            List[dict]: A list of dictionaries, each being one entry from the Bakta_table object where <value> was found.
+        """
         if key is None:
             return [entry for entry in self.table if any(value in v for v in entry.values())]
         elif isinstance(key, list):
@@ -111,6 +133,14 @@ class Bakta_table: #{{{
         locus_tag: str,
         level: int
     ) -> Optional[str]:
+        """
+        A more specialized version of the find method to look specifically for unirefids
+        Args:
+            locus_tag (str): The locus_tag (identifier) to look for
+            level (int): The UniRef ID level to look for (e.g 90).
+        Returns:
+            str or None: Returns the ID as string or None if no ID was found.
+        """
         # Find the entry based on the locus tag
         entry = self.find(locus_tag, "locus tag")
 
