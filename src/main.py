@@ -26,7 +26,8 @@ def main(
     uniref50_threshold = float('inf'),
     uniref90_threshold = float('inf'),
     uniref100_threshold = float('inf'),
-    out_file = None
+    out_file = None,
+    nopurge:bool = False
 ):
     start_time_total = time.time()   
     # Step 1: Creating clusters with diamond
@@ -37,7 +38,8 @@ def main(
         executable = executable,
         threshold = threshold,
         method = method,
-        verbose = timing
+        verbose = timing,
+        nopurge = nopurge
     )
     if verbose: print(f"Clustering found {len(clusters)} clusters")
     if timing: print(f"Clustering took: {time.time()-time_clustering:.4f}s")
@@ -219,6 +221,11 @@ if __name__ == "__main__":
         help = "The max amount of distinct UniRef100 IDs per cluster",
         type = int
     )
+    parser.add_argument(
+        "--nopurge",
+        help = "Do not purge singleton clusters before parsing them.",
+        action = "store_true"
+    )
 
     args = parser.parse_args()
     # }}}
@@ -243,5 +250,6 @@ if __name__ == "__main__":
     if args.ur90: params["uniref90_threshold"] = args.ur90
     if args.ur100: params["uniref100_threshold"] = args.ur100
     if args.out: params["out_file"] = args.out
+    if args.nopurge: params["nopurge"] = args.nopurge
 
     main(**params)

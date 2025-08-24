@@ -96,11 +96,12 @@ def concat_fastas( # {{{
 # # }}}
 
 def main( # {{{
-        data_file: str,
-        executable: str,
-        threshold: int,
-        method:str = "cluster",
-        verbose: bool = False
+    data_file: str,
+    executable: str,
+    threshold: int,
+    method:str = "cluster",
+    verbose: bool = False,
+    nopurge:bool = False
 ):
     data = io.parse_csv(
         data_file,
@@ -123,10 +124,11 @@ def main( # {{{
     if verbose: print(f"Growing took: {(end_time-start_time):.4f}s")
 
     # purge clusters with less than two members
-    start_time = time.time()
-    clusters = purge_clusters(clusters)
-    end_time = time.time()
-    if verbose: print(f"Purging took: {(end_time-start_time):.4f}s")
+    if not nopurge:
+        start_time = time.time()
+        clusters = purge_clusters(clusters)
+        end_time = time.time()
+        if verbose: print(f"Purging took: {(end_time-start_time):.4f}s")
 
     # Turn locus tags into actual sequences
     start_time = time.time()
