@@ -20,11 +20,16 @@ def draw(
     tree = Phylo.read(StringIO(newick), 'newick')
     match mode:
         case 'show':
-            Phylo.draw(tree)
+            Phylo.draw(tree, do_show=False)
+            plt.axis('off')
+            plt.show()
+            plt.close()
         case 'save':
             try:
                 Phylo.draw(tree, do_show=False)
+                plt.axis('off')
                 plt.savefig(path)
+                plt.close()
             except Exception as e:
                 print(f"There was an error saving the file: {e}")
         case 'ascii':
