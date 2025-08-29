@@ -650,13 +650,11 @@ class Distmat: #{{{
     def upgma( #{{{
             self,
             distances: bool = False,
-            draw:bool = False
     ) -> str:
         """
         Perform UPGMA on the matrix, creating a tree in Newick format.
         Args:
             distances (bool): Whether to include distances. Currently not implemented. Defaults to False.
-            draw (bool): Whether to draw the tree using BioPython (must be installed). Defaults to False.
         Returns:
             str: The string of the created tree in Newick format.
         """
@@ -667,11 +665,7 @@ class Distmat: #{{{
         while len(labels) > 1:
             a, b = self.smallest(matrix)
             matrix, labels = self._join_cells(matrix, labels, a, b, distances)
-        if draw:
-            from Bio import Phylo
-            Phylo.draw(Phylo.read(StringIO(labels[0]), "newick"))
-        else:
-            return labels[0]
+        return labels[0]
     #}}}
 
 #}}}

@@ -5,6 +5,7 @@
 # TODO: add docstrings
 
 import argparse, os, time
+from typing import Optional
 
 import clustering as cl
 import filtering as fl
@@ -27,7 +28,9 @@ def main(
     uniref90_threshold = float('inf'),
     uniref100_threshold = float('inf'),
     out_file = None,
-    nopurge:bool = False
+    nopurge:bool = False,
+    images:Optional[str] = None,
+    ascii:Optional[str] = None
 ):
     start_time_total = time.time()   
     # Step 1: Creating clusters with diamond
@@ -126,6 +129,18 @@ def main(
     else:
         [print(tree) for tree in trees]
 
+    if images:
+        if verbose: print(">>> Now creating tree image files")
+        import draw
+        for index,tree in enumerate(trees):
+            draw.draw(tree, mode='save', path=os.path.join(images, f"{index:0{len(str(len(trees)))}}.png"))
+
+    if ascii:
+        if verbose: print(">>> Now creating ascii tree files")
+        import draw
+        for index,tree in enumerate(trees):
+            draw.draw(tree, mode='ascii', path=os.path.join(ascii, f"{index:0{len(str(len(trees)))}}.txt"))
+
     if timing: print(f"Total Time:: {time.time()-start_time_total:.4f}s")
 
 if __name__ == "__main__":
@@ -154,6 +169,18 @@ if __name__ == "__main__":
         "--alignment_out",
         metavar = "FOLDER",
         help = "The path where to save the alignment for each cluster as separate fasta. Not saved if omitted.",
+        type = str
+    )
+    parser.add_argument(
+        "--images",
+        metavar = "FOLDER",
+        help = "The path where to save the image for each tree. Not saved if omitted.",
+        type = str
+    )
+    parser.add_argument(
+        "--ascii",
+        metavar = "FOLDER",
+        help = "The path where to save the ascii render for each tree. Not saved if omitted.",
         type = str
     )
     parser.add_argument(
@@ -239,6 +266,8 @@ if __name__ == "__main__":
     params["executable"] = executable
     params["threshold"] = THRESHOLD
     if args.alignment_out: params["alignment_path"] = args.alignment_out
+    if args.images: params["images"] = args.images
+    if args.ascii: params["ascii"] = args.ascii
     if args.linclust: params["method"] = "linclust"
     if args.verbose: params["verbose"] = args.verbose
     if args.timing: params["timing"] = args.timing
