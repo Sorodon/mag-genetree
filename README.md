@@ -23,8 +23,8 @@ Positional arguments:
 | `--gaps`          |           | `GAP_RATE`   | `1`                 | The max gap rate to keep                                                |
 | `--length`        |           | `DIFFERENCE` | `1`                 | The max difference in sequence length (relative) to keep                |
 | `--lookup`        |           | `FILE`       |                     | A csv file containing paths to all necessary bakta files in column one  |
-| `--ur50`          |           | `THRESHOLD`  | Inf                 | The max amount of distinct UniRef50 IDs per cluster                     |
-| `--ur90`          |           | `THRESHOLD`  | Inf                 | The max amount of distinct UniRef90 IDs per cluster                     |
-| `--ur100`         |           | `THRESHOLD`  | Inf                 | The max amount of distinct UniRef100 IDs per cluster                    |
+| `--ur50`          |           | `THRESHOLD`  | $\infty$            | The max amount of distinct UniRef50 IDs per cluster                     |
+| `--ur90`          |           | `THRESHOLD`  | $\infty$            | The max amount of distinct UniRef90 IDs per cluster                     |
+| `--ur100`         |           | `THRESHOLD`  | $\infty$            | The max amount of distinct UniRef100 IDs per cluster                    |
 | `--nopurge`       |           |              |                     | Do not purge singleton clusters before parsing them                     |
 
