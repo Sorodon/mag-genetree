@@ -2,8 +2,6 @@
 # vim: set foldclose=all foldlevel=0:
 # vim: set foldenable: 
 
-# TODO: add docstrings
-
 import argparse, os, time
 from typing import Optional
 
